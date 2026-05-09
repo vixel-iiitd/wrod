@@ -1,0 +1,165 @@
+import { useState } from "react";
+import { motion } from "framer-motion";
+import { RoomState, Player } from "../types";
+
+interface Props {
+  roomState: RoomState | null;
+  playerId: string | null;
+  error: string | null;
+  onCreateRoom: (name: string) => void;
+  onJoinRoom: (code: string, name: string) => void;
+  onStartGame: () => void;
+  onClearError: () => void;
+}
+
+export default function Lobby({ roomState, playerId, error, onCreateRoom, onJoinRoom, onStartGame, onClearError }: Props) {
+  const [name, setName] = useState("");
+  const [code, setCode] = useState("");
+  const [mode, setMode] = useState<"home" | "create" | "join">("home");
+
+  const me = roomState?.players.find((p) => p.id === playerId);
+  const isHost = me?.isHost ?? false;
+
+  if (roomState) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center gap-8 p-6">
+        <motion.div
+          initial={{ scale: 0.8, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          className="text-center"
+        >
+          <p className="text-gray-400 text-sm mb-1">Room Code</p>
+          <h2 className="text-5xl font-extrabold tracking-widest text-yellow-400">
+            {roomState.roomCode}
+          </h2>
+          <p className="text-gray-500 text-xs mt-2">Share this with friends</p>
+        </motion.div>
+
+        <div className="w-full max-w-sm space-y-2">
+          <p className="text-gray-400 text-sm mb-3">{roomState.players.length} player{roomState.players.length !== 1 ? "s" : ""} in lobby</p>
+          {roomState.players.map((p: Player) => (
+            <motion.div
+              key={p.id}
+              initial={{ x: -20, opacity: 0 }}
+              animate={{ x: 0, opacity: 1 }}
+              className="flex items-center gap-3 bg-gray-800 rounded-lg px-4 py-3"
+            >
+              <div className="w-2 h-2 rounded-full bg-green-400" />
+              <span className="font-bold">{p.name}</span>
+              {p.isHost && <span className="ml-auto text-xs text-yellow-400 font-bold">HOST</span>}
+              {p.id === playerId && !p.isHost && <span className="ml-auto text-xs text-gray-500">you</span>}
+            </motion.div>
+          ))}
+        </div>
+
+        {isHost && (
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={onStartGame}
+            disabled={roomState.players.length < 1}
+            className="bg-green-500 hover:bg-green-400 text-black font-extrabold px-10 py-4 rounded-2xl text-xl disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+          >
+            Start Game →
+          </motion.button>
+        )}
+        {!isHost && (
+          <p className="text-gray-500 text-sm animate-pulse">Waiting for host to start…</p>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen flex flex-col items-center justify-center gap-6 p-6">
+      <motion.div
+        initial={{ y: -30, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        className="text-center mb-4"
+      >
+        <h1 className="text-6xl font-extrabold tracking-tight">
+          <span className="text-yellow-400">Pattern</span>
+          <span className="text-white"> Rush</span>
+        </h1>
+        <p className="text-gray-400 mt-2">Fill the blanks. Beat the clock. Win.</p>
+      </motion.div>
+
+      {error && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="bg-red-900/50 border border-red-500 rounded-lg px-4 py-3 text-red-300 text-sm flex items-center gap-3"
+        >
+          {error}
+          <button onClick={onClearError} className="ml-auto text-red-400 hover:text-red-200">✕</button>
+        </motion.div>
+      )}
+
+      {mode === "home" && (
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col gap-4 w-full max-w-xs">
+          <button
+            onClick={() => setMode("create")}
+            className="bg-yellow-400 hover:bg-yellow-300 text-black font-extrabold py-4 rounded-2xl text-lg transition-colors"
+          >
+            Create Room
+          </button>
+          <button
+            onClick={() => setMode("join")}
+            className="bg-gray-700 hover:bg-gray-600 text-white font-bold py-4 rounded-2xl text-lg transition-colors"
+          >
+            Join Room
+          </button>
+        </motion.div>
+      )}
+
+      {mode === "create" && (
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="flex flex-col gap-4 w-full max-w-xs">
+          <input
+            autoFocus
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && name.trim() && onCreateRoom(name.trim())}
+            placeholder="Your name"
+            maxLength={20}
+            className="bg-gray-800 border border-gray-600 rounded-xl px-4 py-3 text-white text-lg focus:outline-none focus:border-yellow-400"
+          />
+          <button
+            onClick={() => name.trim() && onCreateRoom(name.trim())}
+            className="bg-yellow-400 hover:bg-yellow-300 text-black font-extrabold py-4 rounded-2xl text-lg transition-colors"
+          >
+            Create Room
+          </button>
+          <button onClick={() => setMode("home")} className="text-gray-500 hover:text-gray-300 text-sm">← Back</button>
+        </motion.div>
+      )}
+
+      {mode === "join" && (
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="flex flex-col gap-4 w-full max-w-xs">
+          <input
+            autoFocus
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="Your name"
+            maxLength={20}
+            className="bg-gray-800 border border-gray-600 rounded-xl px-4 py-3 text-white text-lg focus:outline-none focus:border-yellow-400"
+          />
+          <input
+            value={code}
+            onChange={(e) => setCode(e.target.value.toUpperCase())}
+            onKeyDown={(e) => e.key === "Enter" && name.trim() && code.trim() && onJoinRoom(code.trim(), name.trim())}
+            placeholder="Room code"
+            maxLength={4}
+            className="bg-gray-800 border border-gray-600 rounded-xl px-4 py-3 text-white text-lg tracking-widest uppercase focus:outline-none focus:border-yellow-400"
+          />
+          <button
+            onClick={() => name.trim() && code.trim() && onJoinRoom(code.trim(), name.trim())}
+            className="bg-yellow-400 hover:bg-yellow-300 text-black font-extrabold py-4 rounded-2xl text-lg transition-colors"
+          >
+            Join Room
+          </button>
+          <button onClick={() => setMode("home")} className="text-gray-500 hover:text-gray-300 text-sm">← Back</button>
+        </motion.div>
+      )}
+    </div>
+  );
+}
