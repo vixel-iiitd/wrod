@@ -4,11 +4,12 @@ import { Submission } from "../types";
 interface Props {
   pattern: string;
   answer?: string;
+  description?: string;
   submissions: Submission[];
   totalPlayers: number;
 }
 
-export default function RoundReveal({ pattern, answer, submissions, totalPlayers }: Props) {
+export default function RoundReveal({ pattern, answer, description, submissions, totalPlayers }: Props) {
   const noShows = totalPlayers - submissions.length;
 
   return (
@@ -29,6 +30,16 @@ export default function RoundReveal({ pattern, answer, submissions, totalPlayers
           >
             <p className="text-gray-500 text-xs uppercase tracking-widest mb-1">The word was</p>
             <p className="text-4xl font-extrabold tracking-widest text-white uppercase">{answer}</p>
+            {description && (
+              <motion.p
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.35 }}
+                className="mt-2 text-gray-400 text-sm max-w-xs mx-auto leading-relaxed"
+              >
+                {description}
+              </motion.p>
+            )}
           </motion.div>
         )}
       </motion.div>

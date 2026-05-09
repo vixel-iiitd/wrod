@@ -18,7 +18,7 @@ import * as path from "path";
  */
 
 export const patternConfig = {
-  minVisible: (len: number) => Math.min(4, Math.floor(len / 2)),
+  minVisible: (len: number) => Math.min(4, Math.floor((len+1) / 2)),
   maxVisible: (len: number) => Math.max(Math.floor(len / 2), len - 2),
   maxLength: 4,
 };

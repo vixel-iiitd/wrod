@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { io, Socket } from "socket.io-client";
-import { RoomState } from "../types";
+import { RoomState, Category } from "../types";
 
 const SERVER = import.meta.env.VITE_SERVER_URL ?? "http://localhost:3001";
 
@@ -65,8 +65,8 @@ export function useSocket() {
     return () => { socket.disconnect(); };
   }, []);
 
-  const createRoom = (playerName: string) =>
-    socketRef.current?.emit("room:create", { playerName });
+  const createRoom = (playerName: string, category: Category = "general") =>
+    socketRef.current?.emit("room:create", { playerName, category });
 
   const joinRoom = (code: string, playerName: string) =>
     socketRef.current?.emit("room:join", { roomCode: code, playerName });

@@ -22,9 +22,10 @@ function randInt(min: number, max: number): number {
   return min + Math.floor(Math.random() * (max - min + 1));
 }
 
-export function generatePattern(): PatternResult {
+export function generatePattern(words?: string[]): PatternResult {
+  const pool = words ?? wordList;
   for (let attempt = 0; attempt < 200; attempt++) {
-    const word = wordList[Math.floor(Math.random() * wordList.length)];
+    const word = pool[Math.floor(Math.random() * pool.length)];
     const len = word.length;
 
     const minVisible = patternConfig.minVisible(len);

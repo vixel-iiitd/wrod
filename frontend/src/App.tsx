@@ -9,6 +9,7 @@ import RoundReveal from "./components/RoundReveal";
 import Leaderboard from "./components/Leaderboard";
 import SolveToast from "./components/SolveToast";
 import ScoreBar from "./components/ScoreBar";
+import GameBackground from "./components/GameBackground";
 
 const ROUND_DURATION_MS = 15_000;
 
@@ -61,6 +62,8 @@ export default function App() {
   const timerFraction = timeLeft / ROUND_DURATION_MS;
 
   return (
+    <>
+    <GameBackground category={roomState?.category ?? null} />
     <div className={`min-h-screen flex flex-col items-center justify-center p-4 ${phase && phase !== "lobby" ? "pt-16" : ""}`}>
       {!connected && (
         <div className="fixed top-3 right-3 bg-red-900 text-red-300 text-xs px-3 py-1 rounded-full">
@@ -157,6 +160,7 @@ export default function App() {
             <RoundReveal
               pattern={round.pattern}
               answer={round.answer}
+              description={round.description}
               submissions={round.submissions}
               totalPlayers={roomState?.players.length ?? 0}
             />
@@ -186,5 +190,6 @@ export default function App() {
         )}
       </AnimatePresence>
     </div>
+    </>
   );
 }

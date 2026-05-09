@@ -1,12 +1,12 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { RoomState, Player } from "../types";
+import { RoomState, Player, Category, CATEGORIES, CATEGORY_CONFIG } from "../types";
 
 interface Props {
   roomState: RoomState | null;
   playerId: string | null;
   error: string | null;
-  onCreateRoom: (name: string) => void;
+  onCreateRoom: (name: string, category: Category) => void;
   onJoinRoom: (code: string, name: string) => void;
   onStartGame: () => void;
   onClearError: () => void;
@@ -16,11 +16,13 @@ export default function Lobby({ roomState, playerId, error, onCreateRoom, onJoin
   const [name, setName] = useState("");
   const [code, setCode] = useState("");
   const [mode, setMode] = useState<"home" | "create" | "join">("home");
+  const [selectedCategory, setSelectedCategory] = useState<Category>("general");
 
   const me = roomState?.players.find((p) => p.id === playerId);
   const isHost = me?.isHost ?? false;
 
   if (roomState) {
+    const catConfig = CATEGORY_CONFIG[roomState.category];
     return (
       <div className="min-h-screen flex flex-col items-center justify-center gap-8 p-6">
         <motion.div
@@ -33,6 +35,11 @@ export default function Lobby({ roomState, playerId, error, onCreateRoom, onJoin
             {roomState.roomCode}
           </h2>
           <p className="text-gray-500 text-xs mt-2">Share this with friends</p>
+          <div className="mt-3 inline-flex items-center gap-2 bg-gray-800 border border-gray-700 rounded-full px-4 py-1.5">
+            <span className="text-yellow-400 font-bold text-sm">{catConfig.label}</span>
+            <span className="text-gray-500 text-xs">·</span>
+            <span className="text-gray-400 text-xs">{catConfig.description}</span>
+          </div>
         </motion.div>
 
         <div className="w-full max-w-sm space-y-2">
@@ -118,13 +125,38 @@ export default function Lobby({ roomState, playerId, error, onCreateRoom, onJoin
             autoFocus
             value={name}
             onChange={(e) => setName(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && name.trim() && onCreateRoom(name.trim())}
+            onKeyDown={(e) => e.key === "Enter" && name.trim() && onCreateRoom(name.trim(), selectedCategory)}
             placeholder="Your name"
             maxLength={20}
             className="bg-gray-800 border border-gray-600 rounded-xl px-4 py-3 text-white text-lg focus:outline-none focus:border-yellow-400"
           />
+
+          <div className="flex flex-col gap-2">
+            <p className="text-gray-400 text-sm font-semibold">Category</p>
+            <div className="grid grid-cols-2 gap-2">
+              {CATEGORIES.map((cat) => {
+                const cfg = CATEGORY_CONFIG[cat];
+                const active = selectedCategory === cat;
+                return (
+                  <button
+                    key={cat}
+                    onClick={() => setSelectedCategory(cat)}
+                    className={`flex flex-col items-start px-3 py-2.5 rounded-xl border text-left transition-colors ${
+                      active
+                        ? "border-yellow-400 bg-yellow-400/10 text-yellow-400"
+                        : "border-gray-600 bg-gray-800 text-gray-300 hover:border-gray-400"
+                    }`}
+                  >
+                    <span className="font-bold text-sm">{cfg.label}</span>
+                    <span className="text-xs text-gray-500 leading-tight">{cfg.description}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
           <button
-            onClick={() => name.trim() && onCreateRoom(name.trim())}
+            onClick={() => name.trim() && onCreateRoom(name.trim(), selectedCategory)}
             className="bg-yellow-400 hover:bg-yellow-300 text-black font-extrabold py-4 rounded-2xl text-lg transition-colors"
           >
             Create Room

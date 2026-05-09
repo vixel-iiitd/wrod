@@ -2,6 +2,7 @@ import { generatePattern } from "./PatternGenerator";
 import { validateWord } from "./WordValidator";
 import { calcPoints, buildLeaderboard, Submission } from "./GameEngine";
 import { game } from "../config/game";
+import { Category, DEFAULT_CATEGORY, getCategoryWords, getWordDescription } from "../config/categories";
 
 export type GamePhase =
   | "lobby"
@@ -21,6 +22,7 @@ export interface RoundState {
   roundNumber: number;
   pattern: string;
   answer: string;
+  description: string | null;
   startTime: number;
   submissions: Submission[];
   submittedIds: Set<string>;
@@ -29,17 +31,23 @@ export interface RoundState {
 
 export class GameRoom {
   roomCode: string;
+  category: Category;
   phase: GamePhase = "lobby";
   players: Map<string, Player> = new Map();
   scores: Record<string, number> = {};
   currentRound: RoundState | null = null;
   roundNumber = 0;
+  private categoryWords: string[];
+  private categoryWordSet: Set<string>;
   private phaseTimer: NodeJS.Timeout | null = null;
   private onPhaseChange: (room: GameRoom) => void;
 
-  constructor(roomCode: string, onPhaseChange: (room: GameRoom) => void) {
+  constructor(roomCode: string, onPhaseChange: (room: GameRoom) => void, category: Category = DEFAULT_CATEGORY) {
     this.roomCode = roomCode;
+    this.category = category;
     this.onPhaseChange = onPhaseChange;
+    this.categoryWords = getCategoryWords(category);
+    this.categoryWordSet = new Set(this.categoryWords);
   }
 
   addPlayer(player: Player) {
@@ -64,7 +72,7 @@ export class GameRoom {
     if (this.currentRound.submittedIds.has(playerId)) return "already_submitted";
 
     const elapsed = Date.now() - this.currentRound.startTime;
-    const valid = validateWord(word, this.currentRound.pattern);
+    const valid = validateWord(word, this.currentRound.pattern, this.categoryWordSet);
     const points = valid ? calcPoints(elapsed) : 0;
     const player = this.players.get(playerId);
 
@@ -103,11 +111,12 @@ export class GameRoom {
       this.phaseTimer = setTimeout(() => this.transitionTo("active"), game.countdownMs);
     } else if (phase === "active") {
       this.roundNumber++;
-      const { pattern, answer } = generatePattern();
+      const { pattern, answer } = generatePattern(this.categoryWords);
       this.currentRound = {
         roundNumber: this.roundNumber,
         pattern,
         answer,
+        description: getWordDescription(this.category, answer) ?? null,
         startTime: Date.now(),
         submissions: [],
         submittedIds: new Set(),
@@ -136,6 +145,7 @@ export class GameRoom {
   toJSON() {
     return {
       roomCode: this.roomCode,
+      category: this.category,
       phase: this.phase,
       players: Array.from(this.players.values()),
       scores: this.scores,
@@ -147,6 +157,9 @@ export class GameRoom {
             pattern: this.currentRound.pattern,
             answer: (this.phase === "reveal" || this.phase === "leaderboard" || this.phase === "finished")
               ? this.currentRound.answer
+              : undefined,
+            description: (this.phase === "reveal" || this.phase === "leaderboard" || this.phase === "finished")
+              ? this.currentRound.description ?? undefined
               : undefined,
             startTime: this.currentRound.startTime,
             submittedCount: this.currentRound.submittedIds.size,

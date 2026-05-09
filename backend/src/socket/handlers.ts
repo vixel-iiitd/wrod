@@ -2,6 +2,7 @@ import { Server, Socket } from "socket.io";
 import { v4 as uuidv4 } from "uuid";
 import { GameRoom } from "../game/GameRoom";
 import { getRoom, setRoom, deleteRoom } from "../store/redis";
+import { Category, DEFAULT_CATEGORY } from "../config/categories";
 
 function generateRoomCode(): string {
   return Math.random().toString(36).substring(2, 6).toUpperCase();
@@ -13,11 +14,11 @@ function broadcastRoomState(io: Server, room: GameRoom) {
 
 export function registerHandlers(io: Server, socket: Socket) {
   // Create a new room
-  socket.on("room:create", ({ playerName }: { playerName: string }) => {
+  socket.on("room:create", ({ playerName, category }: { playerName: string; category?: Category }) => {
     let code = generateRoomCode();
     while (getRoom(code)) code = generateRoomCode();
 
-    const room = new GameRoom(code, (r) => broadcastRoomState(io, r));
+    const room = new GameRoom(code, (r) => broadcastRoomState(io, r), category ?? DEFAULT_CATEGORY);
     room.addPlayer({ id: socket.id, name: playerName, isHost: true });
     setRoom(code, room);
 
