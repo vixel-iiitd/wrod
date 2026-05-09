@@ -85,8 +85,8 @@ export default function Lobby({ roomState, playerId, error, onCreateRoom, onJoin
         className="text-center mb-4"
       >
         <h1 className="text-6xl font-extrabold tracking-tight">
-          <span className="text-yellow-400">Pattern</span>
-          <span className="text-white"> Rush</span>
+          <span className="text-yellow-400">WROD</span>
+          <span className="text-white"> THREE</span>
         </h1>
         <p className="text-gray-400 mt-2">Fill the blanks. Beat the clock. Win.</p>
       </motion.div>
