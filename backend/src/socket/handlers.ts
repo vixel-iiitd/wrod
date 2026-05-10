@@ -1,8 +1,8 @@
 import { Server, Socket } from "socket.io";
-import { v4 as uuidv4 } from "uuid";
 import { GameRoom } from "../game/GameRoom";
 import { getRoom, setRoom, deleteRoom } from "../store/redis";
 import { Category, DEFAULT_CATEGORY } from "../config/categories";
+import { RoomSettings, DEFAULT_SETTINGS } from "../config/game";
 
 function generateRoomCode(): string {
   return Math.random().toString(36).substring(2, 6).toUpperCase();
@@ -13,12 +13,20 @@ function broadcastRoomState(io: Server, room: GameRoom) {
 }
 
 export function registerHandlers(io: Server, socket: Socket) {
-  // Create a new room
-  socket.on("room:create", ({ playerName, category }: { playerName: string; category?: Category }) => {
+  socket.on("room:create", ({
+    playerName,
+    category,
+    settings,
+  }: {
+    playerName: string;
+    category?: Category;
+    settings?: Partial<RoomSettings>;
+  }) => {
     let code = generateRoomCode();
     while (getRoom(code)) code = generateRoomCode();
 
-    const room = new GameRoom(code, (r) => broadcastRoomState(io, r), category ?? DEFAULT_CATEGORY);
+    const resolvedSettings: RoomSettings = { ...DEFAULT_SETTINGS, ...settings };
+    const room = new GameRoom(code, (r) => broadcastRoomState(io, r), category ?? DEFAULT_CATEGORY, resolvedSettings);
     room.addPlayer({ id: socket.id, name: playerName, isHost: true });
     setRoom(code, room);
 
@@ -27,7 +35,6 @@ export function registerHandlers(io: Server, socket: Socket) {
     broadcastRoomState(io, room);
   });
 
-  // Join an existing room
   socket.on("room:join", ({ roomCode, playerName }: { roomCode: string; playerName: string }) => {
     const code = roomCode.toUpperCase();
     const room = getRoom(code);
@@ -46,7 +53,6 @@ export function registerHandlers(io: Server, socket: Socket) {
     broadcastRoomState(io, room);
   });
 
-  // Host starts the game
   socket.on("game:start", ({ roomCode }: { roomCode: string }) => {
     const room = getRoom(roomCode);
     if (!room) return;
@@ -55,43 +61,50 @@ export function registerHandlers(io: Server, socket: Socket) {
       socket.emit("room:error", { message: "Only the host can start the game" });
       return;
     }
-    if (room.players.size < 1) {
-      socket.emit("room:error", { message: "Need at least 1 player" });
-      return;
-    }
     room.startGame();
   });
 
-  // Player submits an answer
+  socket.on("game:restart", ({ roomCode }: { roomCode: string }) => {
+    const room = getRoom(roomCode);
+    if (!room) return;
+    const ok = room.restartGame(socket.id);
+    if (!ok) {
+      socket.emit("room:error", { message: "Only the host can restart the game" });
+    }
+  });
+
   socket.on("game:submit", ({ roomCode, word }: { roomCode: string; word: string }) => {
     const room = getRoom(roomCode);
     if (!room) return;
 
-    const result = room.submitAnswer(socket.id, word.trim());
+    const { status, remainingAttempts, pointsEarned } = room.submitAnswer(socket.id, word.trim());
 
-    // Tell the submitter their result immediately
-    socket.emit("game:submit:result", { result, word });
+    socket.emit("game:submit:result", { result: status, word, remainingAttempts, pointsEarned });
 
-    // Notify everyone ELSE that this player solved it (toast popup)
-    if (result === "accepted") {
+    if (status === "accepted") {
       const player = room.players.get(socket.id);
-      socket.to(roomCode).emit("game:player:solved", {
-        playerName: player?.name ?? "Someone",
-      });
+      socket.to(roomCode).emit("game:player:solved", { playerName: player?.name ?? "Someone" });
     }
 
-    // Tell everyone a submission happened (count only, not the word)
-    io.to(roomCode).emit("game:submission:count", {
-      count: room.currentRound?.submittedIds.size ?? 0,
-      total: room.players.size,
-    });
-
-    if (result === "accepted" || result === "invalid") {
+    if (status !== "not_active" && status !== "already_submitted") {
+      io.to(roomCode).emit("game:submission:count", {
+        count: room.currentRound?.submittedIds.size ?? 0,
+        total: room.players.size,
+      });
       broadcastRoomState(io, room);
     }
   });
 
-  // Handle disconnect
+  socket.on("chat:send", ({ roomCode, text }: { roomCode: string; text: string }) => {
+    if (!text?.trim()) return;
+    const room = getRoom(roomCode);
+    if (!room) return;
+    const msg = room.addChatMessage(socket.id, text.trim());
+    if (msg) {
+      io.to(roomCode).emit("chat:message", msg);
+    }
+  });
+
   socket.on("disconnect", () => {
     for (const code of [...require("../store/redis").listRooms()]) {
       const room = getRoom(code);
@@ -107,7 +120,6 @@ export function registerHandlers(io: Server, socket: Socket) {
         if (leavingPlayer) {
           io.to(code).emit("game:player:left", { playerName: leavingPlayer.name });
         }
-        // Transfer host if host left
         const wasHost = !Array.from(room.players.values()).find((p) => p.isHost);
         if (wasHost) {
           const first = room.players.values().next().value;

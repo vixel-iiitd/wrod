@@ -1,12 +1,14 @@
 import { useEffect, useRef, useState } from "react";
 import { io, Socket } from "socket.io-client";
-import { RoomState, Category } from "../types";
+import { RoomState, Category, RoomSettings, ChatMessage } from "../types";
 
 const SERVER = import.meta.env.VITE_SERVER_URL ?? "http://localhost:3001";
 
 export interface SubmitResult {
-  result: "accepted" | "invalid" | "already_submitted" | "not_active";
+  result: "accepted" | "invalid" | "already_submitted" | "not_active" | "profanity";
   word: string;
+  remainingAttempts: number;
+  pointsEarned: number;
 }
 
 export interface SubmissionCount {
@@ -30,6 +32,7 @@ export function useSocket() {
   const [lastSubmit, setLastSubmit] = useState<SubmitResult | null>(null);
   const [submissionCount, setSubmissionCount] = useState<SubmissionCount | null>(null);
   const [toasts, setToasts] = useState<GameNotification[]>([]);
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
 
   useEffect(() => {
     const socket = io(SERVER, { transports: ["websocket"] });
@@ -42,12 +45,24 @@ export function useSocket() {
       setRoomCode(code);
       setPlayerId(pid);
       setError(null);
+      setChatMessages([]);
     });
 
-    socket.on("room:state", (state: RoomState) => setRoomState(state));
+    socket.on("room:state", (state: RoomState) => {
+      setRoomState((prev) => {
+        if (prev?.roundNumber !== state.roundNumber || prev?.phase !== state.phase) {
+          setLastSubmit(null);
+        }
+        return state;
+      });
+    });
     socket.on("room:error", ({ message }: { message: string }) => setError(message));
     socket.on("game:submit:result", (r: SubmitResult) => setLastSubmit(r));
     socket.on("game:submission:count", (c: SubmissionCount) => setSubmissionCount(c));
+
+    socket.on("chat:message", (msg: ChatMessage) => {
+      setChatMessages((prev) => [...prev.slice(-99), msg]);
+    });
 
     const addToast = (playerName: string, variant: GameNotification["variant"]) => {
       const id = Date.now() + Math.random();
@@ -65,8 +80,8 @@ export function useSocket() {
     return () => { socket.disconnect(); };
   }, []);
 
-  const createRoom = (playerName: string, category: Category = "general") =>
-    socketRef.current?.emit("room:create", { playerName, category });
+  const createRoom = (playerName: string, category: Category = "general", settings?: Partial<RoomSettings>) =>
+    socketRef.current?.emit("room:create", { playerName, category, settings });
 
   const joinRoom = (code: string, playerName: string) =>
     socketRef.current?.emit("room:join", { roomCode: code, playerName });
@@ -74,8 +89,14 @@ export function useSocket() {
   const startGame = () =>
     roomCode && socketRef.current?.emit("game:start", { roomCode });
 
+  const restartGame = () =>
+    roomCode && socketRef.current?.emit("game:restart", { roomCode });
+
   const submitAnswer = (word: string) =>
     roomCode && socketRef.current?.emit("game:submit", { roomCode, word });
+
+  const sendChatMessage = (text: string) =>
+    roomCode && socketRef.current?.emit("chat:send", { roomCode, text });
 
   return {
     connected,
@@ -86,10 +107,13 @@ export function useSocket() {
     lastSubmit,
     submissionCount,
     toasts,
+    chatMessages,
     createRoom,
     joinRoom,
     startGame,
+    restartGame,
     submitAnswer,
+    sendChatMessage,
     clearError: () => setError(null),
     clearSubmit: () => setLastSubmit(null),
   };

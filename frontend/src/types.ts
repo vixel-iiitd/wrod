@@ -45,9 +45,24 @@ export const CATEGORY_CONFIG: Record<Category, CategoryConfig> = {
 
 export const CATEGORIES = Object.keys(CATEGORY_CONFIG) as Category[];
 
+export interface RoomSettings {
+  totalRounds: number;
+  roundDurationSec: number;
+  wordLength: "any" | "short" | "medium" | "long";
+}
+
+export interface ChatMessage {
+  id: string;
+  playerId: string;
+  playerName: string;
+  text: string;
+  timestamp: number;
+}
+
 export interface RoomState {
   roomCode: string;
   category: Category;
+  settings: RoomSettings;
   phase: "lobby" | "countdown" | "active" | "reveal" | "leaderboard" | "finished";
   players: Player[];
   scores: Record<string, number>;

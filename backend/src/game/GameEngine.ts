@@ -9,9 +9,9 @@ export interface Submission {
   valid: boolean;
 }
 
-export function calcPoints(elapsedMs: number): number {
+export function calcPoints(elapsedMs: number, roundDurationMs = game.roundDurationMs): number {
   const { maxPoints, minPoints } = game.scoring;
-  const fraction = Math.min(elapsedMs / game.roundDurationMs, 1);
+  const fraction = Math.min(elapsedMs / roundDurationMs, 1);
   const points = Math.round(maxPoints - (maxPoints - minPoints) * fraction);
   return points;
 }

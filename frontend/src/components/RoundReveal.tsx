@@ -64,7 +64,12 @@ export default function RoundReveal({ pattern, answer, description, submissions,
               {s.valid && (
                 <span className="ml-auto text-yellow-400 font-bold text-sm">+{s.points}</span>
               )}
-              {!s.valid && <span className="ml-auto text-gray-600 text-sm">0</span>}
+              {!s.valid && s.points < 0 && (
+                <span className="ml-auto text-red-400 font-bold text-sm">{s.points}</span>
+              )}
+              {!s.valid && s.points === 0 && (
+                <span className="ml-auto text-gray-600 text-sm">0</span>
+              )}
             </motion.div>
           ))}
 

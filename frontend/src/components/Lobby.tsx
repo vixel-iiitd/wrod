@@ -1,28 +1,41 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { RoomState, Player, Category, CATEGORIES, CATEGORY_CONFIG } from "../types";
+import { RoomState, Player, Category, CATEGORIES, CATEGORY_CONFIG, RoomSettings } from "../types";
 
 interface Props {
   roomState: RoomState | null;
   playerId: string | null;
   error: string | null;
-  onCreateRoom: (name: string, category: Category) => void;
+  onCreateRoom: (name: string, category: Category, settings: Partial<RoomSettings>) => void;
   onJoinRoom: (code: string, name: string) => void;
   onStartGame: () => void;
   onClearError: () => void;
 }
+
+const ROUND_OPTIONS = [3, 5, 8, 10, 15];
+const DURATION_OPTIONS = [10, 15, 20, 30];
+const WORD_LENGTH_OPTIONS: { value: RoomSettings["wordLength"]; label: string }[] = [
+  { value: "any", label: "Any length" },
+  { value: "short", label: "Short (3–5)" },
+  { value: "medium", label: "Medium (5–8)" },
+  { value: "long", label: "Long (8+)" },
+];
 
 export default function Lobby({ roomState, playerId, error, onCreateRoom, onJoinRoom, onStartGame, onClearError }: Props) {
   const [name, setName] = useState("");
   const [code, setCode] = useState("");
   const [mode, setMode] = useState<"home" | "create" | "join">("home");
   const [selectedCategory, setSelectedCategory] = useState<Category>("general");
+  const [totalRounds, setTotalRounds] = useState(8);
+  const [roundDurationSec, setRoundDurationSec] = useState(15);
+  const [wordLength, setWordLength] = useState<RoomSettings["wordLength"]>("any");
 
   const me = roomState?.players.find((p) => p.id === playerId);
   const isHost = me?.isHost ?? false;
 
   if (roomState) {
     const catConfig = CATEGORY_CONFIG[roomState.category];
+    const settings = roomState.settings;
     return (
       <div className="min-h-screen flex flex-col items-center justify-center gap-8 p-6">
         <motion.div
@@ -40,6 +53,15 @@ export default function Lobby({ roomState, playerId, error, onCreateRoom, onJoin
             <span className="text-gray-500 text-xs">·</span>
             <span className="text-gray-400 text-xs">{catConfig.description}</span>
           </div>
+          {settings && (
+            <div className="mt-2 flex items-center justify-center gap-3 text-xs text-gray-500">
+              <span>{settings.totalRounds} rounds</span>
+              <span>·</span>
+              <span>{settings.roundDurationSec}s each</span>
+              <span>·</span>
+              <span>{WORD_LENGTH_OPTIONS.find(o => o.value === settings.wordLength)?.label ?? "Any length"}</span>
+            </div>
+          )}
         </motion.div>
 
         <div className="w-full max-w-sm space-y-2">
@@ -125,12 +147,13 @@ export default function Lobby({ roomState, playerId, error, onCreateRoom, onJoin
             autoFocus
             value={name}
             onChange={(e) => setName(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && name.trim() && onCreateRoom(name.trim(), selectedCategory)}
+            onKeyDown={(e) => e.key === "Enter" && name.trim() && onCreateRoom(name.trim(), selectedCategory, { totalRounds, roundDurationSec, wordLength })}
             placeholder="Your name"
             maxLength={20}
             className="bg-gray-800 border border-gray-600 rounded-xl px-4 py-3 text-white text-lg focus:outline-none focus:border-yellow-400"
           />
 
+          {/* Category */}
           <div className="flex flex-col gap-2">
             <p className="text-gray-400 text-sm font-semibold">Category</p>
             <div className="grid grid-cols-2 gap-2">
@@ -155,8 +178,70 @@ export default function Lobby({ roomState, playerId, error, onCreateRoom, onJoin
             </div>
           </div>
 
+          {/* Room Settings */}
+          <div className="flex flex-col gap-3 bg-gray-800/50 border border-gray-700 rounded-xl px-4 py-3">
+            <p className="text-gray-400 text-sm font-semibold">Room Settings</p>
+
+            <div className="flex flex-col gap-1">
+              <p className="text-gray-500 text-xs">Rounds</p>
+              <div className="flex gap-2 flex-wrap">
+                {ROUND_OPTIONS.map((r) => (
+                  <button
+                    key={r}
+                    onClick={() => setTotalRounds(r)}
+                    className={`px-3 py-1.5 rounded-lg text-sm font-bold transition-colors ${
+                      totalRounds === r
+                        ? "bg-yellow-400 text-black"
+                        : "bg-gray-700 text-gray-300 hover:bg-gray-600"
+                    }`}
+                  >
+                    {r}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-1">
+              <p className="text-gray-500 text-xs">Time per round</p>
+              <div className="flex gap-2 flex-wrap">
+                {DURATION_OPTIONS.map((d) => (
+                  <button
+                    key={d}
+                    onClick={() => setRoundDurationSec(d)}
+                    className={`px-3 py-1.5 rounded-lg text-sm font-bold transition-colors ${
+                      roundDurationSec === d
+                        ? "bg-yellow-400 text-black"
+                        : "bg-gray-700 text-gray-300 hover:bg-gray-600"
+                    }`}
+                  >
+                    {d}s
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-1">
+              <p className="text-gray-500 text-xs">Word length</p>
+              <div className="flex gap-2 flex-wrap">
+                {WORD_LENGTH_OPTIONS.map((opt) => (
+                  <button
+                    key={opt.value}
+                    onClick={() => setWordLength(opt.value)}
+                    className={`px-3 py-1.5 rounded-lg text-sm font-bold transition-colors ${
+                      wordLength === opt.value
+                        ? "bg-yellow-400 text-black"
+                        : "bg-gray-700 text-gray-300 hover:bg-gray-600"
+                    }`}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+
           <button
-            onClick={() => name.trim() && onCreateRoom(name.trim(), selectedCategory)}
+            onClick={() => name.trim() && onCreateRoom(name.trim(), selectedCategory, { totalRounds, roundDurationSec, wordLength })}
             className="bg-yellow-400 hover:bg-yellow-300 text-black font-extrabold py-4 rounded-2xl text-lg transition-colors"
           >
             Create Room
